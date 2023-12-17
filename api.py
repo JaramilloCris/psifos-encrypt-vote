@@ -1,9 +1,8 @@
+from config import BACKEND_URL
 from models import EncryptedVote
 
 import json
 import requests
-
-BACKEND_URL = "http://localhost:8000"
 
 
 def get_session(election_name: str) -> str:
