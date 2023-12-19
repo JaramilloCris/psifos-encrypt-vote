@@ -6,7 +6,7 @@ from models import Election, EncryptedVote
 
 import sys
 
-def get_info(info_psifos=False):
+def get_info(info_psifos=False, election_name=None):
 
     """
     Get info about an election from the backend
@@ -19,14 +19,15 @@ def get_info(info_psifos=False):
     public_key_json = PUBLIC_KEY_JSON
     questions = QUESTIONS
     election_uuid = ELECTION_UUID
+    election_name = ELECTION_NAME if election_name is None else election_name
     if info_psifos:
-        election_info = get_info_election(ELECTION_NAME)
+        election_info = get_info_election(election_name)
         public_key_json = election_info["public_key"]
         questions = election_info["questions"]
         election_uuid = election_info["election_uuid"]
 
     public_key = EGPublicKey.fromJSONDict(public_key_json)
-    election = Election(name=ELECTION_NAME, questions=questions, public_key=public_key, election_uuid=election_uuid)
+    election = Election(name=election_name, questions=questions, public_key=public_key, election_uuid=election_uuid)
     return election
 
 
@@ -59,7 +60,8 @@ def encrypt_vote(to_json=True, **kwargs):
     """
     
     info_psifos = kwargs.get("info_psifos", False)
-    election = get_info(info_psifos=info_psifos)
+    election_name = kwargs.get("name_election", None)
+    election = get_info(info_psifos=info_psifos, election_name=election_name)
     enc_ans = list(
         map(
             lambda idx_value: encrypt_answer(election, idx_value[0], idx_value[1]),
@@ -83,7 +85,8 @@ def send_vote(**kwargs):
     """
 
     info_psifos = kwargs.get("info_psifos", False)
-    election = get_info(info_psifos=info_psifos)
+    election_name = kwargs.get("name_election", None)
+    election = get_info(info_psifos=info_psifos, election_name=election_name)
     vote = encrypt_vote(to_json=False, **kwargs)
     total_votes = kwargs.get("total_votes", 1)
     for _ in range(int(total_votes)):
@@ -94,14 +97,16 @@ def send_vote(**kwargs):
 if __name__ == "__main__":
     action = sys.argv[1]
     info_psifos = sys.argv[2] == "-psifos" if len(sys.argv) > 2 else False
+    name_election = sys.argv[3] if len(sys.argv) > 3 else None
 
-    total_votes_position = 3 if info_psifos else 2
+    total_votes_position = 4 if info_psifos else 2
     total_votes = sys.argv[total_votes_position] if len(sys.argv) > total_votes_position else 1
 
     actions = {"send": send_vote, "encrypt": encrypt_vote}
 
     if action in actions:
         data = {
+            "name_election": name_election,
             "info_psifos": info_psifos,
             "total_votes": total_votes,
         }

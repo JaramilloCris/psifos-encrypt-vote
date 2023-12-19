@@ -3,6 +3,7 @@ from models import EncryptedVote
 from utils import parse_questions
 
 import json
+import sys
 import requests
 
 
@@ -48,6 +49,10 @@ def get_info_election(election_name: str):
     """
     url = f"{INFO_URL}/election/{election_name}"
     response = requests.get(url)
+
+    if response.status_code != 200:
+        print("Error getting election info")
+        sys.exit(1)
     election_json = response.json()
     return {
         "questions": parse_questions(json.loads(election_json["questions"])),
