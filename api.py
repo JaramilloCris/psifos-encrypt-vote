@@ -1,5 +1,6 @@
-from config import BACKEND_URL
+from config import BACKEND_URL, INFO_URL
 from models import EncryptedVote
+from utils import parse_questions
 
 import json
 import requests
@@ -36,3 +37,20 @@ def send_vote_to_psifos(vote: EncryptedVote, session: str, election_name: str):
     cookie_session = {'session': session}
     response = requests.post(url, json=post_data, headers=headers, cookies=cookie_session)
     return response
+
+def get_info_election(election_name: str):
+    """
+    Get info about an election
+
+    :param election_name: The name of the election
+    :return: The response from the backend
+    
+    """
+    url = f"{INFO_URL}/election/{election_name}"
+    response = requests.get(url)
+    election_json = response.json()
+    return {
+        "questions": parse_questions(json.loads(election_json["questions"])),
+        "public_key": json.loads(election_json["public_key"]),
+        "election_uuid": election_json["uuid"],
+    }

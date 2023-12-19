@@ -34,3 +34,24 @@ def JSONFiletoDict(filename):
     with open(filename, 'r') as f:
         content = f.read()
     return from_json(content)
+
+
+def parse_questions(questions_json):
+
+    """
+    Parse questions from JSON
+
+    :param questions_json: The questions in JSON format
+    :return: The questions
+    
+    """
+
+    questions = []
+    for question_json in questions_json:
+        question = {
+            "max": int(question_json["max_answers"]),
+            "min": int(question_json["min_answers"]),
+            "total_answers": int(question_json["total_closed_options"]),
+        }
+        questions.append(question)
+    return questions

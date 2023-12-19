@@ -12,10 +12,11 @@ class Election:
 
     """
 
-    def __init__(self,name:str=None, questions={}, public_key=None) -> None:
+    def __init__(self,name:str=None, questions={}, public_key=None, election_uuid="") -> None:
         self.name = name
         self.questions = questions
         self.public_key = public_key
+        self.election_uuid = election_uuid
 
 
 class EncryptedVote:

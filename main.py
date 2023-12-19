@@ -1,13 +1,33 @@
 from algs import EGPublicKey
-from api import get_session, send_vote_to_psifos
+from api import get_session, send_vote_to_psifos, get_info_election
 from config import ELECTION_NAME, ELECTION_UUID, PUBLIC_KEY_JSON, QUESTIONS, ANSWERS
 from encrypt import EncryptedAnswer
 from models import Election, EncryptedVote
 
 import sys
 
-public_key = EGPublicKey.fromJSONDict(PUBLIC_KEY_JSON)
-election = Election(name=ELECTION_NAME, questions=QUESTIONS, public_key=public_key)
+def get_info(info_psifos=False):
+
+    """
+    Get info about an election from the backend
+
+    :param info_psifos: Whether to get info from the backend or from the psifos server
+    :return: The election
+    
+    """
+
+    public_key_json = PUBLIC_KEY_JSON
+    questions = QUESTIONS
+    election_uuid = ELECTION_UUID
+    if info_psifos:
+        election_info = get_info_election(ELECTION_NAME)
+        public_key_json = election_info["public_key"]
+        questions = election_info["questions"]
+        election_uuid = election_info["election_uuid"]
+
+    public_key = EGPublicKey.fromJSONDict(public_key_json)
+    election = Election(name=ELECTION_NAME, questions=questions, public_key=public_key, election_uuid=election_uuid)
+    return election
 
 
 def encrypt_answer(election, question_num, answer_indexed):
@@ -37,21 +57,34 @@ def encrypt_vote(to_json=True, **kwargs):
     :return: The encrypted vote
 
     """
-
+    
+    info_psifos = kwargs.get("info_psifos", False)
+    election = get_info(info_psifos=info_psifos)
     enc_ans = list(
         map(
             lambda idx_value: encrypt_answer(election, idx_value[0], idx_value[1]),
             enumerate(ANSWERS),
         )
     )
-    vote = EncryptedVote(answers=enc_ans, election_uuid=ELECTION_UUID)
+    vote = EncryptedVote(answers=enc_ans, election_uuid=election.election_uuid)
     result = vote.toJSONDict() if to_json else vote
-    print(result)
+    if to_json:
+        print(result)
+
     return result
 
 
 def send_vote(**kwargs):
-    vote = encrypt_vote(to_json=False)
+    """
+    Send a vote to the backend
+
+    :param kwargs: The arguments
+    
+    """
+
+    info_psifos = kwargs.get("info_psifos", False)
+    election = get_info(info_psifos=info_psifos)
+    vote = encrypt_vote(to_json=False, **kwargs)
     total_votes = kwargs.get("total_votes", 1)
     for _ in range(int(total_votes)):
         cookie_session = get_session(election.name)
@@ -60,12 +93,16 @@ def send_vote(**kwargs):
 
 if __name__ == "__main__":
     action = sys.argv[1]
-    total_votes = sys.argv[2] if len(sys.argv) > 2 else 1
+    info_psifos = sys.argv[2] == "-psifos" if len(sys.argv) > 2 else False
+
+    total_votes_position = 3 if info_psifos else 2
+    total_votes = sys.argv[total_votes_position] if len(sys.argv) > total_votes_position else 1
 
     actions = {"send": send_vote, "encrypt": encrypt_vote}
 
     if action in actions:
         data = {
+            "info_psifos": info_psifos,
             "total_votes": total_votes,
         }
         actions[action](**data)

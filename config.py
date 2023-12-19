@@ -19,3 +19,4 @@ PUBLIC_KEY_JSON = {
 }
 
 BACKEND_URL = "http://localhost:8000"
+INFO_URL = "http://localhost:8001"
