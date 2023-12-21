@@ -429,7 +429,6 @@ class EGCiphertext:
         return proof
 
     def generate_disjunctive_encryption_proof(self, plaintexts, real_index, randomness, challenge_generator):
-        print("real index: ", real_index)
         # note how the interface is as such so that the result does not reveal which is the real proof.
 
         proofs = [None for _ in plaintexts]

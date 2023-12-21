@@ -37,6 +37,8 @@ def send_vote_to_psifos(vote: EncryptedVote, session: str, election_name: str):
     headers = {"Content-Type": "application/json"}
     cookie_session = {'session': session}
     response = requests.post(url, json=post_data, headers=headers, cookies=cookie_session)
+    if response.status_code != 200:
+        print("Error sending vote")
     return response
 
 def get_info_election(election_name: str):

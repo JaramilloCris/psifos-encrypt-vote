@@ -3,8 +3,25 @@ from api import get_session, send_vote_to_psifos, get_info_election
 from config import ELECTION_NAME, ELECTION_UUID, PUBLIC_KEY_JSON, QUESTIONS, ANSWERS
 from encrypt import EncryptedAnswer
 from models import Election, EncryptedVote
+from multiprocessing import Process, Semaphore
 
 import sys
+import os
+
+def random_answers():
+    """
+    Generate random answers
+
+    :return: The random answers
+    
+    """
+
+    import random
+
+    return [
+        [random.randint(0, question["total_answers"] - 1)]
+        for question in QUESTIONS
+    ]
 
 def get_info(info_psifos=False, election_name=None):
 
@@ -62,10 +79,11 @@ def encrypt_vote(to_json=True, **kwargs):
     info_psifos = kwargs.get("info_psifos", False)
     election_name = kwargs.get("name_election", None)
     election = get_info(info_psifos=info_psifos, election_name=election_name)
+    answers = random_answers()
     enc_ans = list(
         map(
             lambda idx_value: encrypt_answer(election, idx_value[0], idx_value[1]),
-            enumerate(ANSWERS),
+            enumerate(answers),
         )
     )
     vote = EncryptedVote(answers=enc_ans, election_uuid=election.election_uuid)
@@ -74,6 +92,18 @@ def encrypt_vote(to_json=True, **kwargs):
         print(result)
 
     return result
+
+def handler_vote(election_name, **kwargs):
+    """
+    Handle a vote
+
+    :param vote: The vote
+    :param election_name: The election name
+    
+    """
+    vote = encrypt_vote(to_json=False, **kwargs)
+    cookie_session = get_session(election_name)
+    send_vote_to_psifos(vote, cookie_session, election_name=election_name)
 
 
 def send_vote(**kwargs):
@@ -84,15 +114,36 @@ def send_vote(**kwargs):
     
     """
 
-    info_psifos = kwargs.get("info_psifos", False)
     election_name = kwargs.get("name_election", None)
-    election = get_info(info_psifos=info_psifos, election_name=election_name)
-    vote = encrypt_vote(to_json=False, **kwargs)
-    total_votes = kwargs.get("total_votes", 1)
-    for _ in range(int(total_votes)):
-        cookie_session = get_session(election.name)
-        send_vote_to_psifos(vote, cookie_session, election_name=election.name)
+    election_name = ELECTION_NAME if election_name is None else election_name
+    total_votes = int(kwargs.get("total_votes", 1))
+    # Obtén el número de núcleos disponibles
+    num_cores = os.cpu_count()
+    
+    # Limita la cantidad de procesos en paralelo usando un semáforo
+    max_parallel_processes = min(num_cores, total_votes)
+    semaphore = Semaphore(max_parallel_processes)
+    
+    def run_process():
+        with semaphore:
+            handler_vote(election_name, **kwargs)
 
+    print(f"Sending {total_votes} votes... (this may take a while)")
+    print(f"Using up to {max_parallel_processes} cores in parallel")
+
+    processes = []
+
+    for _ in range(total_votes):
+        process = Process(target=run_process)
+        processes.append(process)
+        process.start()
+
+    print("Waiting for all votes to be processed...")
+    for process in processes:
+        process.join()
+
+    print("All votes have been processed")
+        
 
 if __name__ == "__main__":
     action = sys.argv[1]
